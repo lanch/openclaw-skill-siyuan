@@ -9,7 +9,7 @@ from typing import Any
 
 from .client import SiyuanAPIError, SiyuanClient
 from .config import SiyuanConfig
-from .tools import ToolContext, run_tool
+from .tools import ToolContext, list_tools, run_tool
 
 
 def handle_request(request: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
@@ -23,7 +23,7 @@ def handle_request(request: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
 
     try:
         result = run_tool(ctx, tool_name, args)
-    except (KeyError, TypeError, SiyuanAPIError) as exc:
+    except (KeyError, TypeError, ValueError, SiyuanAPIError) as exc:
         return {"ok": False, "error": str(exc)}
 
     return {"ok": True, "result": result}
@@ -36,12 +36,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=str,
         help="JSON request, e.g. '{\"tool\": \"list_notebooks\", \"args\": {}}'",
     )
+    parser.add_argument(
+        "--list-tools",
+        action="store_true",
+        help="List supported tool names and exit",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
+
+    if args.list_tools:
+        print(json.dumps({"ok": True, "result": {"tools": list_tools()}}, ensure_ascii=False))
+        return 0
 
     raw_request = args.request if args.request is not None else sys.stdin.read().strip()
     if not raw_request:
